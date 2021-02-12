@@ -1,42 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html class='has-background-light'>
     <head>
         <meta charset="UTF-8" />
         <meta name='viewport' content='width=device-width, initial-scale=1.0'/>
         <link rel="icon" type="image/png" href="./assets/img/favicon.svg"/>
-        <link rel='stylesheet' href='./assets/css/style.css'>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
+        <script src="https://use.fontawesome.com/b7dd2ed953.js"></script>
+        <link rel='stylesheet' href='./assets/css/style.css'>
         <title>Stock Screener</title>
     </head>
-    <body>
-        <header class='navbar'>
+
+    <body class='has-background-light'>
+
+        <header class='navbar has-background-light'>
           <h1 class='title is-1 navbar-item'>Stock Screener</h1>
           <div class='search-bar navbar-item navbar-end'>
             <div id="input-group" class="field has-addons">
-              <div class="dropdown" id='stock-history-btn'>
+              <div class="dropdown mx-1" id='stock-watchlist-btn'>
                 <div class="dropdown-trigger">
                   <button class="button has-text-primary" aria-haspopup="true" aria-controls="history-dropdown">
-                    <span>History</span>
+                    <span>Watchlist</span>
                     <span class="icon is-small">
-                      <i class="fas fa-angle-down" aria-hidden="true"></i>
+                      <i id="caret" class="fa fa-caret-down"></i>
                     </span>
                   </button>
                 </div>
                 <div class="dropdown-menu" id="history-dropdown" role="menu">
                   <div id = "inner-history" class="dropdown-content has-background-primary-light">
-              
+
                   </div>
                 </div>
               </div>
-              <input type="text" class='input' id='stock-input' placeholder="Provide a symbol" aria-label="Search for a stock">
-              <button type="submit" class='button is-primary' id='stock-search'>Search</button>
-            </form>
-           
+              <input type="text" class='input mx-1' id='stock-input' placeholder="Ticker Symbol" aria-label="Search for a stock">
+              <button type="submit" class='button is-primary fa fa-search mx-1' id='stock-search'></button>
+            </div>
           </div>
-
         </header>
 
-
+        <div id='mkt-cap-vis' class='card is-info'>
+          <div id='mkt-cap-hdr' class='m-2 subtitle is-5 has-text-info'><b>Use the Search bar to get information about a stock!</b></div>
+          <div id='total-mkt-cap-comp' class='m-2'>We are currently using a free API, so we can only do 2 stock searches per minute.</div>
+          <div id='day-mkt-cap-comp' class='m-2'>Only works with companies listed on the NYSE and NASDAQ.</div>
+        </div>
 
         
         <div id='stock-info' class='card' style='display:none;'>
@@ -49,17 +54,31 @@
             <div id='stock-change-percent'></div>
             <div id='stock-change-absolute'></div>
             <div id='stock-market-cap'></div>
+
+            <!-- fix charts -->
+            <div id="canvasContainer">
+              <div id="myChart"></div>
+            </div>
         </div>
 
-        <div id='mkt-cap-vis' class='card is-info' style='display:none;'>
-          <div id='total-mkt-cap-comp'></div>
-          <div id='day-mkt-cap-comp'></div>
-      </div>
+
+        <div id="mkt-cap-vis-chart" style="width: 80%; height: 35rem; margin:2rem auto;"></div>
+        
+     <!-- was here before -->
+        
+
       </body>
-      <footer>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-        <script src="./assets/js/currency.min.js"></script>
-        <script src="assets/js/bulma.js"></script>
-        <script src="./assets/js/script.js"></script>
+      <footer class="footer">
+        <div class="content has-text-centered">
+          <p>
+            <strong>Stock Screener</strong> by <a href="https://logner.github.io">Logner</a>. 
+          </p>
+        </div>
       </footer>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+      <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+      <script src="./assets/js/currency.min.js"></script>
+      <script src="assets/js/uiElements.js"></script>
+      <script src="./assets/js/script.js"></script>
 </html>

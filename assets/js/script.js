@@ -8,7 +8,7 @@ var outerStockContainerCurrentPriceEl = document.querySelector("#stock-last-pric
 var outerStockContainerChangePercentEl = document.querySelector("#stock-change-percent");
 var outerStockContainerAbsoluteEl = document.querySelector("#stock-change-absolute");
 var outerStockContainerMarketCapEl = document.querySelector("#stock-market-cap");
-
+var chart;
 var mktCapContainer = document.querySelector('#mkt-cap-vis')
 var mktCapTot = document.querySelector('#total-mkt-cap-comp')
 var mktCapDay = document.querySelector('#day-mkt-cap-comp')
@@ -17,7 +17,6 @@ var mktCapDay = document.querySelector('#day-mkt-cap-comp')
 // Stock Data Storage
 var stockDataContainer = {};
 
-// Stock time-series contaienr from 9:30-4:00
 // TODO: implement data addition to this while looking for 9:30 and 4:00 values in the time-series data
 var stockTimeSeries = {};
 
@@ -44,8 +43,6 @@ var formSubmitHandler = function (event) {
   var stockInput = document.querySelector("#stock-input").value.trim();
   console.log('Fetching Data for: ',stockInput);
   if (stockInput) {
-
-
     getStockInfo(stockInput);
   } else {
     return 1;
@@ -55,9 +52,9 @@ var formSubmitHandler = function (event) {
 //fetch call for stockdata from API
 var getStockInfo = function (stockInput) {
   var timeSeries =
-    "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=" + stockInput + "&interval=5min&apikey=EME3FI6FSOTMXXLD";
+    "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=" + stockInput + "&interval=15min&apikey=EME3FI6FSOTMXXLD";
   var overview =
-  "https://www.alphavantage.co/query?function=OVERVIEW&symbol=" + stockInput + "&apikey=OUE8TXQ1L0CBMKMQ";
+    "https://www.alphavantage.co/query?function=OVERVIEW&symbol=" + stockInput + "&apikey=OUE8TXQ1L0CBMKMQ";
   var clearInput = document.querySelector("#stock-input");
   clearInput.value = "";
   clearOut();
@@ -69,11 +66,9 @@ var getStockInfo = function (stockInput) {
           if (data['Meta Data']) {
             storeDailyData(data);
           } else {
-            console.log('Timeseries API call failed');
+            console.log('Timeseries API call failed on:', stockInput);
             console.log(data)
-            errorMessage = "Can not fetch daily change data on ticker: "+stockInput;
             stockDataContainer = {};
-            outerStockContainerCompanyNameEl.innerHTML += errorMessage+'<br><br>';
           }
         });
       } 
@@ -90,15 +85,16 @@ var getStockInfo = function (stockInput) {
           if (stockDataContainer.openPrice && data['Symbol']) {
             storeStockInfo(data);
             rewriteStockInfo();
-            mktCapVisualize();
+            mktCapPerspective();
             saveToLocalStorage();
+            // createChart(stockDataContainer.timeSeries, stockDataContainer.listOfCloseValues);
           } else {
-            console.log('Overview API call failed');
+            console.log('Overview API call failed on: ', stockInput);
             console.log(data)
-            errorMessage = "Can not fetch Stock Information data on ticker: "+stockInput;
+            errorMessage = "Failed to find data for ticker: "+stockInput;
             stockDataContainer = {};
-            outerStockContainerCompanyNameEl.innerHTML += errorMessage+'';
-            outerStockContainerNameEl.innerHTML = '<br>Please try another ticker or wait for 1 minute before trying another search. See console for details.'
+            outerStockContainerCompanyNameEl.innerHTML = errorMessage+'<br>';
+            // $('#total-mkt-cap-comp').html('Please try another ticker or wait for 1 minute before trying another search. See console for details.')
             errorMessage = '';
           }
         });
@@ -110,47 +106,100 @@ var storeDailyData = function (data) {
   var content = data['Meta Data']
   // if API call succeeds
   if (content){
-    console.log('Time Series API Succeeded');
-    console.log(data);
 
     // add stuff to stockDataContainer)
     var lastRefreshedTime = data["Meta Data"]["3. Last Refreshed"];
-    var currentClosePrice = data["Time Series (5min)"][lastRefreshedTime]["4. close"];
-    currentClosePrice = parseFloat(currentClosePrice).toFixed(2);
+    
+    //last day is the date only and not the time in the entire string
+    var lastDay = lastRefreshedTime.split(" ")[0];
+
+    var marketOpenPrice = data["Time Series (15min)"][lastDay + " 09:45:00"]["4. close"];
+    marketOpenPrice = parseFloat(marketOpenPrice).toFixed(2);
+    var marketClosePrice = data["Time Series (15min)"][lastDay + " 16:00:00"]["4. close"];
+    marketClosePrice = parseFloat(marketClosePrice).toFixed(2);
 
     //Objects.keys returns an array of all the keys from the data [time Series]
-    var listOfTimes = Object.keys(data["Time Series (5min)"]);
+    var listOfTimes = Object.keys(data["Time Series (15min)"]);
+    // .filter loops through listOfTimes and removes anything that doesn't match
+    var filteredListOfTimes = listOfTimes.filter(function(time){
+      //what does the return do: 
+      return time.indexOf(lastDay) > -1  //anything that includes lastDay (ie. 2020-10-20) "-1 means it didn't find anything"
+    });
 
-    //sorting the data returned and the default is asc alphabitcally
-    listOfTimes.sort();
+    //get the list of values to create a graph with - Kumash asked for the data stored in a variable
+    var listOfCloseValues = filteredListOfTimes.map(function(time){  
+      return {
+        value:data["Time Series (15min)"][time]["4. close"],
+        time:time
+      } 
+    })
 
-    //returning the earliest time from the listOfTimes sort in this case the [0] array item
-    var openingTime = listOfTimes[0];
 
-    //getting the opening time using the opening time from the array above
-    var dayOpeningPrice = data["Time Series (5min)"][openingTime]["4. close"];
-    var dayOpeningPrice = parseFloat(dayOpeningPrice).toFixed(2);
 
     //calculations start here
     //storing the percentage growth from the currentClosePrice and the dayOpeningPrice from above
-    var growthPercentage = (currentClosePrice / dayOpeningPrice - 1) * 100;
+    var growthPercentage = (marketClosePrice / marketOpenPrice - 1) * 100;
     growthPercentage = parseFloat(growthPercentage).toFixed(2);
 
     //storing the difference from currentClosePricee and dayOpeningPrice
-    var absoluteGrowth = currentClosePrice - dayOpeningPrice;
+    var absoluteGrowth = marketClosePrice - marketOpenPrice;
     absoluteGrowth = parseFloat(absoluteGrowth).toFixed(2);
 
-    stockDataContainer.openPrice = dayOpeningPrice;
-    stockDataContainer.lastPrice = currentClosePrice;
+    stockDataContainer.openPrice = marketOpenPrice;
+    stockDataContainer.lastPrice = marketClosePrice;
     stockDataContainer.changePerc = growthPercentage;
     stockDataContainer.changeAbs = absoluteGrowth;
     if (absoluteGrowth < 0) {
       stockDataContainer.loss = true;
     } else {stockDataContainer.loss = false;}
+    stockDataContainer.timeSeries = data;
+    stockDataContainer.listOfCloseValues = listOfCloseValues;
   }else{
     // Produce Error Message
-    console.log(data);
   }
+
+}
+
+var createChart = function(data, listOfCloseValues){
+//new chart here
+    //Start of Chart.JS visualization ************
+    var listOfTime = [];
+
+    for(var i = 0; i <= listOfCloseValues.length - 1; i++){
+      var one = listOfCloseValues[i].time;
+      listOfTime.push(one);
+      listOfTime.sort();
+    }
+  
+    var listOfValues = [];
+
+    for(var i = 0; i <= listOfCloseValues.length - 1; i++){
+      var two = listOfCloseValues[i].value;
+      listOfValues.push(parseFloat(two));
+    }
+  
+    var companyNameDisplay = data["Meta Data"]["2. Symbol"]
+    var upperComp = companyNameDisplay.toUpperCase();
+    
+    var ctx = document.getElementById('myChart').getContext('2d');
+
+    //checks to see if chart exists, if it does destroy() is called to render new chart
+
+    Chart.defaults.global.defaultFontColor = 'white';
+    //render new chart
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+          labels: listOfTime,
+          datasets: [{
+              label: upperComp,
+              backgroundColor:'rgb(148, 189, 255)',
+              borderColor: 'rgb(12, 102, 247)',
+              data: listOfValues
+          }]
+      },
+        options: {}
+  });
 }
 
 // function to pull and display the stock overview information
@@ -166,6 +215,7 @@ var storeStockInfo = function (data) {
   var ticker = data["Symbol"];
   var desc = data["Description"];
   var sharesTotal = data['SharesOutstanding'];
+  var emp = data["FullTimeEmployees"];
 
 
   var marketCapFormatted = magnitudeIterate(marketCap, 0);
@@ -175,6 +225,7 @@ var storeStockInfo = function (data) {
   stockDataContainer.marketCapFormatted = marketCapFormatted;
   stockDataContainer.description = desc;
   stockDataContainer.SharesOutstanding = sharesTotal;
+  stockDataContainer.employees = emp;
   } else {
     // Produce Error Message
     console.log(data);
@@ -182,11 +233,9 @@ var storeStockInfo = function (data) {
 
 //clear containers
 var clearOut = function () {
-  console.log('Clearing Out')
   outerStockContainerEl.classList.remove("blink_text");
   outerStockContainerEl.style = '';
-  mktCapContainer.style = '';
-
+  // mktCapContainer.style = '';
   outerStockContainerNameEl.textContent = "";
   outerStockContainerCompanyNameEl.textContent = "";
   outerStockContainerOpeningPriceEl.textContent = "";
@@ -194,14 +243,16 @@ var clearOut = function () {
   outerStockContainerChangePercentEl.textContent = "";
   outerStockContainerAbsoluteEl.textContent = "";
   outerStockContainerMarketCapEl.textContent = "";
-
-  mktCapTot.textContent = "";
-  mktCapDay.textContent = "";
+  if(chart){
+    chart.destroy()
+  }
+  // $('#mkt-cap-hdr').html("");
+  // mktCapTot.textContent = "";
+  // mktCapDay.textContent = "";
 };
 
 // rewrites the stock-info and its contents based on info from stockDataContainer
 var rewriteStockInfo = function() {
-  console.log('rewriting stock-info')
   outerStockContainerNameEl.textContent = stockDataContainer.tickerName;
   outerStockContainerCompanyNameEl.textContent = stockDataContainer.companyName;
   outerStockContainerOpeningPriceEl.textContent = "Opening Price: $" + stockDataContainer.openPrice;
@@ -217,70 +268,124 @@ var rewriteStockInfo = function() {
    }
 }
 
-// TODO: Add a market-cap Visualizer
-var mktCapVisualize = function() {
-  var keyword = 'gained'
+// market-cap Visualizer
+var mktCapPerspective = function() {
+
+  // if stockDataContainer.loss is true than use lost instead of gained
+  var keyword = 'gained';
   if (stockDataContainer.loss) {keyword = 'lost'}
 
-  var medianIndividualIncome =  55000;
+  // variables for compairson
+  var medianIndividualIncome =  36400;
+  var exchangeRate = 0.77;
 
+
+  // input a dollar ammount, get back its proportion to the market cap in terms of 1. total marketcap, 2. change in marketcap for the day
   var diffCalculator = function(value) {
     var totalEquivalence = stockDataContainer.marketCap / value;
     var dailyEquivalence = Math.abs(parseInt((stockDataContainer.changeAbs*stockDataContainer.SharesOutstanding)/value))
 
     return [totalEquivalence, dailyEquivalence]
   }
+
   /// mktCap / medianIndividualIncome == num of people funded for a year
   /// (dayChange*sharesOutstanding) / medianHouseholdIncome = num of people that can be funded for a year based on today's movements
+  var medianIncomeComp = diffCalculator(medianIndividualIncome*exchangeRate);
 
-  mktCapTot.innerHTML = "If each canadian made $"+medianIndividualIncome+" in a year:<br>"+stockDataContainer.tickerName +" is valued at $"+stockDataContainer.marketCapFormatted+". This is equivalent to the salary of <b>"
-                        + magnitudeIterate(diffCalculator(medianIndividualIncome)[0], 0) + " canadians.</b>"
-  mktCapDay.innerHTML = "The daily change in "+stockDataContainer.tickerName+"'s stock price represents <b>"+
-                       diffCalculator(medianIndividualIncome)[1]+" canadians income</b> worth of value "
-                        +keyword+'.'
+  // rewrite the html for the info card
+  // $('#mkt-cap-hdr').html("The median Canadian makes $"+medianIndividualIncome+" CAD per year (2018):");
+  // mktCapTot.innerHTML = stockDataContainer.tickerName +"'s valuation would be equivalent to the salary of <b>"
+  //                       + magnitudeIterate(medianIncomeComp[0], 0) + " Canadians.</b>";
+  // mktCapDay.innerHTML = "The daily change in "+stockDataContainer.tickerName+"'s stock price represents <b>"+
+  //                      medianIncomeComp[1]+" Canadians income</b> worth of value "
+  //                       +keyword+'. In real dollars, that would be <b>$'+
+  //                       magnitudeIterate(medianIncomeComp[1]*medianIndividualIncome, 0)+'</b>.';
   
 
 }
+
+// adding a stock to the history dropdown
 var appendToHistoryList = function (ticker) {
-  // adds to history-list
-  var button = $('<a>').attr('class','dropdown-item ').attr("href","#").html(ticker)
-  $("#inner-history").append(button)
-  button.on('click', function(event) {getStockInfo(event.target.textContent)})
+
+  // Setting up the link structure
+  var link = $('<a>').attr('class','dropdown-item watchlist-item').attr("href","#").attr('id',ticker+'-container');
+  var button = $('<span>').attr('class', 'stock-search-button').html(ticker);
+  var remove = $('<a>').attr('class', 'icon is-medium p-3 trash-item').attr('id', ticker+'-padding')
+              .html('<i class="fa fa-trash" id="'+ticker+'-rmv"></i>');
+
+  // Adding the link to the page
+  link.append(button).append(remove);
+  $("#inner-history").append(link);
+
+  // attaching on-click event listeners 1 for removal, other for retreiving updated stock info for the clicked element.
+  remove.on('click', function(event) {console.log(); removeFromWatchlist($(event.target))});
+  button.on('click', function(event) {console.log(); getStockInfo(event.target.textContent)});
+};
+
+// Remove the target and its parent link from the watchlist
+var removeFromWatchlist = function(target) {
+  // Get parent Container and remove it
+  var ticker = (target.attr('id').split('-')[0]);
+  $('#'+ticker+'-container').remove();  
+
+  // Remove from Localstorage
+  watchList = localStorage.getItem('stock-list')
+  watchList = JSON.parse(watchList);
+  delete watchList[ticker]
+  watchList = JSON.stringify(watchList);
+  localStorage.setItem('stock-list', watchList);
+
+  // Redraw the Visualization
+  visualizeMarketCap();
 };
 
 var saveToLocalStorage = function() {
   var searchHistory = localStorage.getItem('stock-list')
   var name = stockDataContainer.tickerName;
+  
+  // if search history already exists
   if (searchHistory) {
       searchHistory = JSON.parse(searchHistory);
-      if (searchHistory[name]){}
+      // and if search-history already has the ticker, then just update that ticker
+      // dont include timeseries because that'll make everything too big
+      if (searchHistory[name]){
+        console.log(name)
+        searchHistory[name] = stockDataContainer;
+        searchHistory = JSON.stringify(searchHistory);
+        localStorage.setItem('stock-list',searchHistory);
+        visualizeMarketCap();
+      }
+      // and if search-history doesnt have the ticker, then add that ticker
       else {
-      searchHistory[name] = 'true';
+      searchHistory[name] = stockDataContainer;
       searchHistory = JSON.stringify(searchHistory);
       localStorage.setItem('stock-list',searchHistory);
       appendToHistoryList(name);
+      visualizeMarketCap();
       }
   }
 
   else {
+    // if search history doesnt exist make a new contianer and add the ticker
       searchHistory = {};
-      searchHistory[name] = true;
+      searchHistory[name] = stockDataContainer;
       searchHistory = JSON.stringify(searchHistory);
       localStorage.setItem('stock-list',searchHistory);
+      appendToHistoryList(name);
+      visualizeMarketCap();
   }
 }
 
+// Load all data
 var loadFromLocalStorage = function() {
   searchHistory = localStorage.getItem('stock-list')
   if (searchHistory) {
       searchHistory = JSON.parse(searchHistory);
       for (x in searchHistory) {
-        console.log(x);
         appendToHistoryList(x)
       }
   }
 }
-
 loadFromLocalStorage();
 
 //On click form submit even handler
@@ -292,4 +397,6 @@ document.addEventListener("keyup", function(event) {
     }
 });
 
-//////////////////////////
+window.onresize = visualizeMarketCap;
+
+///////////////////

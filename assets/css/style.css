@@ -27,13 +27,39 @@
      }
 .navbar > h1 {
     text-align:center;
+    user-select: none;
 }
 
+#inner-history > .watchlist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 0.5rem;
+    padding-left: 1rem;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.trash-item{
+    width: 100%;
+    height: 100%;
+}
+
+.trash-item:hover{
+    background-color: #ff3860;
+    color: #FFF;
+}
+
+.stock-search-button{
+    height:100%;
+    width:100%;
+}
 
 #stock-info {
-    max-width: 80%;
+    max-width:50%;
     margin: auto;
     margin-top:2rem;
+    padding-bottom:1rem;
     background-color:hsl(171, 100%, 41%);
     color:white;
 }
@@ -56,4 +82,12 @@
 
 #stock-market-cap{
     margin-bottom: 1rem;
+}
+
+@media screen and (min-width: 1024px){
+    header{
+        max-width: 95%;
+        margin:auto;
+
+    }
 }
