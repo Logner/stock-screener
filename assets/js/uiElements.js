@@ -24,7 +24,8 @@ var treeMapDataGenerator = function() {
         for (x in watchList) {
           if(parseInt(watchList[x].employees)==0){var ratio = 0}else{var ratio = parseInt(watchList[x].marketCap)/parseInt(watchList[x].employees)}
           
-          dataArr.push([watchList[x].tickerName,'Watchlisted Stocks',parseInt(watchList[x].marketCap), parseInt(ratio)])
+          dataArr.push([watchList[x].tickerName +" - "+ magnitudeIterate(parseInt(watchList[x].marketCap), 0)
+                        ,'Watchlisted Stocks',parseInt(watchList[x].marketCap), parseInt(ratio)])
         }
         return [dataArr, false]
         
@@ -84,7 +85,7 @@ function visualizeMarketCap() {
     else {empToMktRatio = " $"+magnitudeIterate(data.getValue(row, 3),0)}
 
     return '<div style="background:hsl(0, 0%, 100%); padding:1rem;">' +
-    '<b>Ticker:</b> ' + data.getValue(row, 0) + '<br>'+
+    '<b>Ticker:</b> ' + data.getValue(row, 0).split(" - ")[0] + '<br>'+
     '<b>Market Cap:</b> '+magnitudeIterate(size, 0) + '<br>' +
     '<b>Market Cap to Employees ratio:</b>'+ empToMktRatio + ' per employee</div>';
   }
